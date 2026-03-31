@@ -4252,8 +4252,9 @@ ELSEIF (IOS)
     IF (EXISTS ${IOS_SIMULATOR_x86_64_RELEASE_FILE_NAME})
       LIST(APPEND LIPO_INPUT_FILES "${IOS_SIMULATOR_x86_64_RELEASE_FILE_NAME}")
     ENDIF()
+    LIST(APPEND XCFRAMEWORK_INPUT_FILES ${IPHONEOS_STATIC_LIB_FILE})
     IF (EXISTS ${IPHONESIMULATOR_STATIC_LIB_FILE})
-      LIST(APPEND XCFRAMEWORK_INPUT_FILES ${IPHONESIMULATOR_STATIC_LIB_FILE} "")
+      LIST(APPEND XCFRAMEWORK_INPUT_FILES ${IPHONESIMULATOR_STATIC_LIB_FILE})
     ENDIF()
 
     add_custom_command(TARGET ${the_target}
@@ -4276,6 +4277,22 @@ ELSEIF (IOS)
       WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/libs/iOS"
       COMMENT "Creating xcframework for iOS using files from: ${XCFRAMEWORK_INPUT_FILES}")
   ENDIF()
+
+  IF(MAC_CATALYST)
+    SET(CATALYST_FAT_LIB ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_catalyst.a)
+    add_custom_command(TARGET ${the_target}
+      POST_BUILD
+      COMMAND lipo -create -output ${CATALYST_FAT_LIB} ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_catalyst_*.a
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      COMMENT "Merging Mac Catalyst static libraries into ${CATALYST_FAT_LIB}")
+    add_custom_command(TARGET ${the_target}
+      POST_BUILD
+      COMMAND rm -rf ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_catalyst.xcframework
+      COMMAND xcodebuild -create-xcframework -library ${CATALYST_FAT_LIB} -output ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_catalyst.xcframework
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/libs/iOS"
+      COMMENT "Creating xcframework for Mac Catalyst")
+  ENDIF()
+
   LIST(LENGTH LIPO_INPUT_FILES LIPO_INPUT_FILES_LENGTH)
   IF (LIPO_INPUT_FILES_LENGTH EQUAL 1)
     add_custom_command(TARGET ${the_target}
@@ -4347,6 +4364,10 @@ ELSEIF (IOS)
 		DESTINATION "libs/iOS/"
 		COMPONENT emgucv_binary)
     ENDIF()
+    INSTALL(DIRECTORY
+      "${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_catalyst.xcframework"
+      DESTINATION "libs/iOS/"
+      COMPONENT emgucv_binary)
   ENDIF()
 
 ELSEIF (ANDROID)
@@ -4383,17 +4404,24 @@ ELSEIF (IS_UBUNTU OR IS_DEBIAN OR IS_RHEL)
       COMMENT "Copying file to ${CMAKE_SOURCEDIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}")
   ENDIF()
   
-  add_custom_command(TARGET ${the_target}
-      POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENCV_BUILD_INFO_VERSION_STRING} ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/${EMGUCV_ARCH}_version_string.inc
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-      COMMENT "Copying build information from ${OPENCV_BUILD_INFO_VERSION_STRING} to ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/${EMGUCV_ARCH}_version_string.inc")
-	  
-  #INSTALL(FILES
-  #		"${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/${EMGUCV_ARCH}_version_string.inc"
-  #		DESTINATION "libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}"
-  #		COMPONENT emgucv_binary)  
+  IF (IS_UBUNTU)
+    SET(VERSION_STR_FILE ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/${EMGUCV_ARCH}_${UBUNTU_VERSION}_version_string.inc)
+  ELSEIF(IS_DEBIAN)
+    SET(VERSION_STR_FILE ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/${EMGUCV_ARCH}_${DEBIAN_VERSION}_version_string.inc)
+  ELSE()
+    SET(VERSION_STR_FILE ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/${EMGUCV_ARCH}_version_string.inc)
+  ENDIF()
   
+  add_custom_command(TARGET ${the_target}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENCV_BUILD_INFO_VERSION_STRING} ${VERSION_STR_FILE}
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    COMMENT "Copying build information from ${OPENCV_BUILD_INFO_VERSION_STRING} to ${VERSION_STR_FILE}")
+  
+  INSTALL(FILES
+    "${VERSION_STR_FILE}"
+    DESTINATION "libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}"
+  	COMPONENT emgucv_binary)  
 	  
 ELSEIF (APPLE)
   SET_TARGET_PROPERTIES(${the_target}
@@ -4444,11 +4472,12 @@ ELSEIF (APPLE)
     ENDIF()
   ENDIF()
 
-	add_custom_command(TARGET ${the_target}
-      POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENCV_BUILD_INFO_VERSION_STRING} ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/../${EMGUCV_ARCH}_version_string.inc
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-      COMMENT "Copying build information from ${OPENCV_BUILD_INFO_VERSION_STRING} to ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/../${EMGUCV_ARCH}_version_string.inc")
+  add_custom_command(TARGET ${the_target}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENCV_BUILD_INFO_VERSION_STRING} ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/../${EMGUCV_ARCH}_version_string.inc
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    COMMENT "Copying MacOS build information from ${OPENCV_BUILD_INFO_VERSION_STRING} to ${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/../${EMGUCV_ARCH}_version_string.inc")
+  
     #INSTALL(FILES
 	#	"${CMAKE_SOURCE_DIR}/libs${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/../${EMGUCV_ARCH}_version_string.inc"
 	#	DESTINATION "libs/runtimes/osx/native"

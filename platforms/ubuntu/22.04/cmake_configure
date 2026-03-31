@@ -18,12 +18,11 @@ if [[ $# -gt 0 ]]; then
 fi
 
 if [ "$BUILD_CUDA" = true ]; then
-    CUDA_OPTIONS=( -DWITH_CUDA:BOOL=TRUE -DOPENCV_DNN_CUDA:BOOL=TRUE -DBUILD_SHARED_LIBS:BOOL=TRUE -DOPENCV_CMAKE_CUDA_DEBUG:BOOL=TRUE -DCMAKE_CUDA_ARCHITECTURES:BOOL=TRUE )
-    export CC=cuda-gcc
-    export CXX=cuda-g++
+    CUDA_OPTIONS=( -DWITH_CUDA:BOOL=TRUE -DBUILD_SHARED_LIBS:BOOL=TRUE )
+    export CC=gcc-10
+    export CXX=g++-10 
 else
-    CUDA_OPTIONS=( -DWITH_CUDA:BOOL=FALSE -DOPENCV_DNN_CUDA:BOOL=FALSE -DBUILD_SHARED_LIBS:BOOL=FALSE )
-    CUDA_ENV_VAR=( )
+    CUDA_OPTIONS=( -DWITH_CUDA:BOOL=FALSE -DBUILD_SHARED_LIBS:BOOL=FALSE )
 fi
 
 EMGUCV_CMAKE_SHARED_OPTIONS=( -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON -DCMAKE_BUILD_TYPE:STRING="Release" -DCMAKE_INSTALL_PREFIX:STRING="$INSTALL_FOLDER" -DCMAKE_FIND_ROOT_PATH:STRING="$INSTALL_FOLDER" -DCMAKE_CXX_STANDARD:String="17" )
@@ -87,6 +86,7 @@ else
     CONTRIB_OPTION=( -DWITH_VTK:BOOL=TRUE -DWITH_GSTREAMER:BOOL=TRUE -DOPENCV_EXTRA_MODULES_PATH=../../../../opencv_contrib/modules )
 fi
 
+#cd platforms/ubuntu/20.04
 cd $SCRIPT_FOLDER
 
 mkdir -p build
@@ -122,14 +122,12 @@ cmake \
 #      -DWITH_TBB:BOOL=TRUE \
 #      -DWITH_CUDA:BOOL=FALSE \
     
-#C_INCLUDE_PATH=$PWD/../../../../eigen/:$INSTALL_FOLDER/include/vtk-9.2 CPLUS_INCLUDE_PATH=$PWD/../../../../eigen/:$INSTALL_FOLDER/include/vtk-9.2:$PWD/../../../../harfbuzz/src:$INSTALL_FOLDER/include/harfbuzz make
-#make
-
 # If a build target is specified as the 2nd parameter, build the target.
 # If not specified, do not build target, only configuration will be performed.
 if [[ $# -gt 1 ]]; then
   cmake --build . --config Release --target $2
 fi
+
 
 #if [ "$1" == "cuda" ]; then
 #    cp -rf bin/x64/*.so ../../../../libs/x64

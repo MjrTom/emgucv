@@ -440,6 +440,9 @@ SET(IS_MAC_BUILD OFF)
 SET(IS_MAC_ARM64_BUILD OFF)
 SET(IS_MAC_X86_64_BUILD OFF)
 
+
+
+
 IF(MAC_CATALYST)
   SET(IS_MAC_CATALYST_BUILD ON)
   MESSAGE(STATUS "IS_MAC_CATALYST_BUILD: ${IS_MAC_CATALYST_BUILD}")
@@ -681,7 +684,13 @@ IF(IS_DEBIAN_ARM_BUILD)
   SET(NUGET_NATIVE_PLATFORM_ID_DEBIAN "linux-${NUGET_NATIVE_PLATFORM_ID_ARCH}")
   MESSAGE(STATUS "NUGET_NATIVE_PLATFORM_ID_DEBIAN: ${NUGET_NATIVE_PLATFORM_ID_DEBIAN}") 
 ELSE()
-  SET(NUGET_NATIVE_PLATFORM_ID_DEBIAN "linux-arm")  
+  SET(DEBIAN_DEFAULT_PLATFORM_ID "linux")
+  IF (HAVE_LINUX_ARM)
+    SET(NUGET_NATIVE_PLATFORM_ID_DEBIAN "${DEBIAN_DEFAULT_PLATFORM_ID}-arm")
+  ENDIF()
+  IF (HAVE_LINUX_ARM64)
+    SET(NUGET_NATIVE_PLATFORM_ID_DEBIAN "${DEBIAN_DEFAULT_PLATFORM_ID}-arm64")
+  ENDIF()
 ENDIF()
 STRING(TOLOWER "${NUGET_NATIVE_PLATFORM_ID_DEBIAN}" NUGET_NATIVE_PLATFORM_ID_DEBIAN)
 
@@ -720,28 +729,7 @@ CHECK_BINARY_EXIST("libs/runtimes/rhel-x64/native" "*.so" HAVE_RHEL_X64 ${IS_RHE
 #ENDIF()
 #CHECK_BINARY_EXIST("libs/arm64" "*.so" HAVE_LINUX_ARM64 ${IS_UBUNTU_ARM64_BUILD})
 
-IF ( IS_UBUNTU )
-  #MESSAGE(STATUS "TARGET_ARCH_64: ${TARGET_ARCH_64}")
-  #SET(NUGET_NATIVE_PLATFORM_ID_UBUNTU "${LSB_RELEASE_ID_SHORT}.${LSB_RELEASE_RELEASE_SHORT}-${NUGET_NATIVE_PLATFORM_ID_ARCH}")
-  IF (NOT ("" STREQUAL "${LSB_RELEASE_ID_SHORT}"))
-    SET(NUGET_NATIVE_PLATFORM_ID_UBUNTU "${LSB_RELEASE_ID_SHORT}-${NUGET_NATIVE_PLATFORM_ID_ARCH}")
-  ELSEIF (NOT ("" STREQUAL "${DISTRO_ID}"))  
-    SET(NUGET_NATIVE_PLATFORM_ID_UBUNTU "${DISTRO_ID}-${NUGET_NATIVE_PLATFORM_ID_ARCH}")
-  ENDIF()
-  MESSAGE(STATUS "NUGET_NATIVE_PLATFORM_ID_UBUNTU: ${NUGET_NATIVE_PLATFORM_ID_UBUNTU}")
-ELSE()
-  SET(UBUNTU_DEFAULT_PLATFORM_ID "ubuntu")
-  IF (HAVE_UBUNTU_X86)
-    SET(NUGET_NATIVE_PLATFORM_ID_UBUNTU "${UBUNTU_DEFAULT_PLATFORM_ID}-x86")
-  ENDIF()
-  IF (HAVE_UBUNTU_X64)
-    SET(NUGET_NATIVE_PLATFORM_ID_UBUNTU "${UBUNTU_DEFAULT_PLATFORM_ID}-x64")
-  ENDIF()
-  IF (HAVE_UBUNTU_ARM64)
-    SET(NUGET_NATIVE_PLATFORM_ID_UBUNTU "${UBUNTU_DEFAULT_PLATFORM_ID}-arm64")
-  ENDIF()
-ENDIF()
-STRING(TOLOWER "${NUGET_NATIVE_PLATFORM_ID_UBUNTU}" NUGET_NATIVE_PLATFORM_ID_UBUNTU)
+
 
 IF (IS_RHEL)
   SET(NUGET_NATIVE_PLATFORM_ID_RHEL "${DISTRO_ID}-${NUGET_NATIVE_PLATFORM_ID_ARCH}")
@@ -762,23 +750,45 @@ STRING(TOLOWER "${NUGET_NATIVE_PLATFORM_ID_RHEL}" NUGET_NATIVE_PLATFORM_ID_RHEL)
 
 
 SET(HAVE_MAUI OFF)
-IF(HAVE_IOS OR HAVE_MAC_CATALYST OR HAVE_MAUI_ANDROID OR HAVE_WINDESKTOP)
+IF(HAVE_MAUI_IOS OR HAVE_MAUI_MAC OR HAVE_MAUI_ANDROID OR HAVE_WINDESKTOP)
   SET (HAVE_MAUI ON)
   MESSAGE(STATUS "HAVE_MAUI: ${HAVE_MAUI}")
 ENDIF()
 
-#IF (HAVE_MAUI)
+SET(ANDROID_TFM_VERSION "33.0")
+SET(WINDOWS_TFM_VERSION "10.0.19041.0")
+SET(IOS_TFM_VERSION "")
+if(CMAKE_GENERATOR STREQUAL "Xcode")
+    execute_process(
+        COMMAND xcodebuild -version
+        OUTPUT_VARIABLE XCODE_VERSION_OUTPUT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    string(REGEX MATCH "Xcode ([0-9]+(\\.[0-9]+)*)" _ "${XCODE_VERSION_OUTPUT}")
+    set(XCODE_VERSION "${CMAKE_MATCH_1}")
+    message(STATUS "Using Xcode ${XCODE_VERSION}")
+    #SET(IOS_TFM_VERSION ${XCODE_VERSION})
+#ELSE()
+    #SET(IOS_TFM_VERSION "")
+endif()
 SET(EMGUCV_MAUI_DOTNET_VERSION "net${DOTNET_VERSION_MAJOR}.0")
 
-SET(EMGUCV_MAUI_ANDROID_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-android")
-SET(EMGUCV_MAUI_IOS_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-ios")
-SET(EMGUCV_MAUI_MACOS_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-maccatalyst")
-SET(EMGUCV_MAUI_WINDOWS_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-windows10.0.19041.0")
+IF ("${DOTNET_VERSION_MAJOR}" STREQUAL "9")
+  SET(EMGUCV_MAUI_PACKAGE_VERSION "${DOTNET_VERSION_MAJOR}.0.120")
+ELSE()
+  SET(EMGUCV_MAUI_PACKAGE_VERSION "${DOTNET_VERSION_MAJOR}.0.0")
+ENDIF()
 
-SET(EMGUCV_MAUI_ANDROID_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-android33.0")
-SET(EMGUCV_MAUI_IOS_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-ios16.1")
-SET(EMGUCV_MAUI_MACOS_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-maccatalyst16.1")
-SET(EMGUCV_MAUI_WINDOWS_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-windows10.0.19041.0")
+#IF (HAVE_MAUI)
+#SET(EMGUCV_MAUI_ANDROID_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-android")
+#SET(EMGUCV_MAUI_IOS_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-ios")
+#SET(EMGUCV_MAUI_MACOS_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-maccatalyst")
+#SET(EMGUCV_MAUI_WINDOWS_SRC_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-windows${WINDOWS_TFM_VERSION}")
+
+#SET(EMGUCV_MAUI_ANDROID_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-android${ANDROID_TFM_VERSION}")
+#SET(EMGUCV_MAUI_IOS_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-ios${IOS_TFM_VERSION}")
+#SET(EMGUCV_MAUI_MACOS_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-maccatalyst${IOS_TFM_VERSION}")
+#SET(EMGUCV_MAUI_WINDOWS_DST_FOLDER "${EMGUCV_MAUI_DOTNET_VERSION}-windows${WINDOWS_TFM_VERSION}")
 #ENDIF()
 
   SET(WINDESKTOP_LABEL "")
@@ -925,6 +935,9 @@ ENDIF()
 SET(IS_PRO_BUILD FALSE)
 IF("${CPACK_PACKAGE_NAME}" STREQUAL "${PACKAGE_NAME}-ios-android-macos-windows-ipp-dldt")
   SET(CPACK_PACKAGE_NAME "${PACKAGE_NAME}-pro")
+  SET(IS_PRO_BUILD TRUE)
+ELSEIF("${CPACK_PACKAGE_NAME}" STREQUAL "${PACKAGE_NAME}-ios-android-macos-windows")
+  SET(CPACK_PACKAGE_NAME "${PACKAGE_NAME}-pro-mini")
   SET(IS_PRO_BUILD TRUE)
 ENDIF()
 
@@ -1223,11 +1236,7 @@ IF(WITH_OPENVINO OR WITH_INF_ENGINE)
   SET(EMGUCV_WINDOWS_NUGET_ID "${EMGUCV_WINDOWS_NUGET_ID}.dldt")
 ENDIF()
 
-SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "")
-IF(HAVE_WINDESKTOP_X86)
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x86\\native\\*.dll\" exclude=\"..\\..\\..\\libs\\runtimes\\win-x86\\native\\cu*.dll;..\\..\\..\\libs\\runtimes\\win-x86\\native\\npp*.dll;..\\..\\..\\libs\\runtimes\\win-x86\\native\\concrt*.dll;..\\..\\..\\libs\\runtimes\\win-x86\\native\\msvcp*.dll;..\\..\\..\\libs\\runtimes\\win-x86\\native\\vcruntime*.dll;..\\..\\..\\libs\\runtimes\\win-x86\\native\\vccorlib*.dll\" target=\"runtimes\\win-x86\\native\" />")
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x86\\native\\version_string.inc\" target=\"docs\\build_info_x86.inc\" />")
-	
+IF(HAVE_WINDESKTOP_X86)	
 	INSTALL(
       FILES
       "libs/runtimes/win-x86/native/version_string.inc"
@@ -1236,14 +1245,6 @@ IF(HAVE_WINDESKTOP_X86)
       )
 ENDIF()
 IF(HAVE_WINDESKTOP_X64)
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\*.dll\" exclude=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\cu*.dll;..\\..\\..\\libs\\runtimes\\win-x64\\native\\npp*.dll;..\\..\\..\\libs\\runtimes\\win-x64\\native\\concrt*.dll;..\\..\\..\\libs\\runtimes\\win-x64\\native\\msvcp*.dll;..\\..\\..\\libs\\runtimes\\win-x64\\native\\vcruntime*.dll;..\\..\\..\\libs\\runtimes\\win-x64\\native\\vccorlib*.dll;..\\..\\..\\libs\\runtimes\\win-x64\\native\\zlibwapi.dll\" target=\"runtimes\\win-x64\\native\" />")
-	#Also added configuration files from OpenVino
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\*.xml\" target=\"runtimes\\win-x64\\native\" />")
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\*.json\" target=\"runtimes\\win-x64\\native\" />")
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\*.elf\" target=\"runtimes\\win-x64\\native\" />")
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\*.mvcmd\" target=\"runtimes\\win-x64\\native\" />")
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} <file src=\"..\\..\\..\\libs\\runtimes\\win-x64\\native\\version_string.inc\" target=\"docs\\build_info_x64.inc\" />")
-
     INSTALL(
       FILES
       "libs/runtimes/win-x64/native/version_string.inc"
@@ -1252,10 +1253,6 @@ IF(HAVE_WINDESKTOP_X64)
       )
 ENDIF()
 IF(HAVE_WINDESKTOP_ARM64)
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} 
-	   <file src=\"..\\..\\..\\libs\\runtimes\\win-arm64\\native\\*.dll\" exclude=\"..\\..\\..\\libs\\runtimes\\win-arm64\\native\\cu*.dll;..\\..\\..\\libs\\runtimes\\win-arm64\\native\\npp*.dll;..\\..\\..\\libs\\runtimes\\win-arm64\\native\\concrt*.dll;..\\..\\..\\libs\\runtimes\\win-arm64\\native\\msvcp*.dll;..\\..\\..\\libs\\runtimes\\win-arm64\\native\\vcruntime*.dll;..\\..\\..\\libs\\runtimes\\win-arm64\\native\\vccorlib*.dll;..\\..\\..\\libs\\runtimes\\win-arm64\\native\\opencv_videoio_ffmpeg*.dll\" target=\"runtimes\\win-arm64\\native\" />
-	   <file src=\"..\\..\\..\\libs\\runtimes\\win-arm64\\native\\version_string.inc\" target=\"docs\\build_info_arm64.inc\" />")
-
 	INSTALL(
       FILES
       "libs/runtimes/win-arm64/native/version_string.inc"
@@ -1263,16 +1260,8 @@ IF(HAVE_WINDESKTOP_ARM64)
       COMPONENT emgucv_binary
       )
 ENDIF()
-IF(HAVE_WINDESKTOP)
-	SET(EMGUCV_WINDOWS_NUGET_FILE_LIST "${EMGUCV_WINDOWS_NUGET_FILE_LIST} 
-    <file src=\"..\\..\\..\\miscellaneous\\nuget_icon.png\" target=\"\" />
-    <file src=\"..\\..\\..\\${EMGUCV_LICENSE_FILE}\" target=\"\" />
-	<file src=\"README.md\" target=\"docs\\\" />")
-ENDIF()
-
 
 SET(EMGUCV_NUGET_FRAMEWORK_REFERENCES "")
-
 
 # find the System.Text.Json nuget pacakge version
 SET(EMGUCV_PLATFORM_NETSTANDARD_PROJECT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Emgu.CV/NetStandard/Emgu.CV.csproj")
@@ -1345,8 +1334,7 @@ IF(WITH_CUDA)
 	ELSEIF (${CUDA_VERSION})
 	  SET(EMGU_CUDA_VERSION "${CUDA_VERSION}")
 	ENDIF()
-	
-	
+		
 	SET(EMGU_CUDART_VERSION "${EMGU_CUDA_VERSION}")
 	SET(EMGU_CUDA_NUGET_DEPENDENCY_STR "${EMGU_CUDA_VERSION}")
 	SET(EMGU_CUFFT_VERSION "${EMGU_CUDA_VERSION}")
@@ -1634,7 +1622,6 @@ ADD_SUBDIRECTORY(Emgu.CV.Bitmap)
 ADD_SUBDIRECTORY(Emgu.CV.Wpf)
 ADD_SUBDIRECTORY(Emgu.CV.WindowsUI)
 
-ADD_SUBDIRECTORY(Emgu.CV.Example)
 ADD_SUBDIRECTORY(Emgu.CV.Test)
 ADD_SUBDIRECTORY(Emgu.CV.Cuda)
 
@@ -1647,7 +1634,9 @@ ADD_SUBDIRECTORY(platforms/nuget)
 
 # MAUI will need to use some of the nuget packages. It need to be build after nuget packages is build.
 ADD_SUBDIRECTORY(Emgu.CV.Runtime)
-#ADD_SUBDIRECTORY(Emgu.CV.Runtime/Maui)
+
+# Example may need to use some of the Emgu.CV.Runtime library. It need to be defined after Emgu.CV.Runtime
+ADD_SUBDIRECTORY(Emgu.CV.Example)
 
 INSTALL(
   FILES

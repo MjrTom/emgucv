@@ -5,16 +5,27 @@
 IF(HAVE_LINUX_ARM)
 
   PROJECT(Emgu.CV.runtime.debian-arm.nuget)
-
-  SET(EMGUCV_DEBIAN_ARM_NUGET_ID "${EMGUCV_NUGET_ID}.runtime${EMGUCV_RUNTIME_EXTRA_TAG}.debian-arm")
+  
+  IF(NOT DEFINED DEBIAN_VERSION)
+    # Attempt to get the debian version from version_string.inc file. This is to make sure the debian version is included in the nuget package id, so that the correct debian version can be installed by users. 
+    file(GLOB VERSION_FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../../libs/runtimes/linux-arm/native/*version_string.inc"
+    )
+	LIST(GET VERSION_FILES 0 VERSION_FILE)
+	MESSAGE(STATUS "Attempting to get debian version from file: ${VERSION_FILE}")
+	get_filename_component(VERSION_FILE_NAME ${VERSION_FILE} NAME)
+	string(REGEX MATCH "debian_arm_(.*)_version_string.inc" _ ${VERSION_FILE_NAME})
+	set(DEBIAN_VERSION ${CMAKE_MATCH_1})
+  ENDIF()
+  SET(EMGUCV_DEBIAN_ARM_NUGET_ID "${EMGUCV_NUGET_ID}.runtime${EMGUCV_RUNTIME_EXTRA_TAG}.debian-${DEBIAN_VERSION}-arm")
 
   SET(EMGUCV_DEBIAN_ARM_NUGET_TITLE "Emgu CV Native ARM Runtime for Debian (including Raspberry Pi OS)")
   
   SET(EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST "")
   SET(EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST "${EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST} 
       <file src=\"..\\..\\..\\libs\\runtimes\\linux-arm\\native\\*.so\" target=\"runtimes\\linux-arm\\native\" />")
-  SET(EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST "${EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST} 
-	  <file src=\"..\\..\\..\\libs\\runtimes\\linux-arm\\native\\debian_arm_version_string.inc\" target=\"docs\\build_info_arm.inc\" />")
+  SET(EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST "${EMGUCV_DEBIAN_ARM_NUGET_FILE_LIST}
+      <file src=\"..\\..\\..\\libs\\runtimes\\linux-arm\\native\\*_version_string.inc\" target=\"docs\" />")
 	  
   CONFIGURE_FILE(${EMGU_CV_SOURCE_DIR}/cmake/UseRidGraph.props.in ${CMAKE_CURRENT_SOURCE_DIR}/${EMGUCV_DEBIAN_ARM_NUGET_ID}.props)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/Package.nuspec.in ${CMAKE_CURRENT_SOURCE_DIR}/Package.nuspec)

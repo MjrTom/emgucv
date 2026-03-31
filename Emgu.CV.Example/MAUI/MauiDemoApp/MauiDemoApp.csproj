@@ -18,16 +18,10 @@
 		<ApplicationId>com.emgu.cv.maui.demo</ApplicationId>
 		<ApplicationIdGuid>FCFFF12F-6AC6-478A-9B4F-DAF46BD6A449</ApplicationIdGuid>
 
-		<!-- Versions -->
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>1</ApplicationVersion>
 
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">17.2</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
-		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+    <!-- <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion> -->
 		<Platforms>AnyCPU;x64</Platforms>
 
 		<AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
@@ -36,9 +30,9 @@
 		<!-- <WindowsPackageType>None</WindowsPackageType> -->
 	</PropertyGroup>
 
-	<!-- Temporary work around MAUI iOS AOT compilation issue for dotnet 9: https://github.com/dotnet/runtime/issues/109966#issuecomment-2486161265 -->
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-ios|AnyCPU'">
-        <MtouchInterpreter>-all,System.Private.Windows.Core</MtouchInterpreter>
+	<!-- Temporary work around MAUI iOS/MacCatalyst AOT compilation issue: https://github.com/dotnet/runtime/issues/109966#issuecomment-2486161265 -->
+	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' OR $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+        <MtouchInterpreter>-all,System.Private.Windows.Core,aot-instances</MtouchInterpreter>
     </PropertyGroup>
 
 	<ItemGroup>
