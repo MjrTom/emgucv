@@ -1,8 +1,8 @@
 #!/bin/bash
-# Build libcvextern.bc for Blazor/WASM using the Emscripten toolchain that
+# Build cvextern.bc for Blazor/WASM using the Emscripten toolchain that
 # ships with the .NET SDK WASM workload (Microsoft.NET.Runtime.Emscripten.*).
 #
-# This produces libs/webgl/libcvextern.bc which is linked by
+# This produces libs/webgl/cvextern.bc which is linked by
 # Emgu.CV.Example/HelloWorld.Blazor via NativeFileReference.
 #
 # Usage:
@@ -15,13 +15,32 @@ cd "$(dirname "$0")"
 # ---------------------------------------------------------------------------
 # Locate the .NET SDK's Emscripten pack
 # ---------------------------------------------------------------------------
-DOTNET_PACKS="${DOTNET_ROOT:-$HOME/.dotnet}/packs"
+# Locate the dotnet packs directory by searching known locations
+_find_dotnet_packs() {
+    local candidates=(
+        "${DOTNET_ROOT}/packs"
+        "$HOME/.dotnet/packs"
+        "/usr/local/share/dotnet/packs"
+        "/usr/share/dotnet/packs"
+        "$(dirname "$(dirname "$(readlink -f "$(which dotnet 2>/dev/null)" 2>/dev/null)" 2>/dev/null)" 2>/dev/null)/packs"
+    )
+    for dir in "${candidates[@]}"; do
+        if [ -d "$dir" ] && find "$dir" -maxdepth 5 -name "emcc" -path "*/Microsoft.NET.Runtime.Emscripten.*" 2>/dev/null | grep -q .; then
+            echo "$dir"
+            return
+        fi
+    done
+}
+DOTNET_PACKS=$(_find_dotnet_packs)
+if [ -z "$DOTNET_PACKS" ]; then
+    DOTNET_PACKS="${DOTNET_ROOT:-$HOME/.dotnet}/packs"
+fi
 
 EMSCRIPTEN_SDK_ROOT=$(find "$DOTNET_PACKS" \
     -maxdepth 5 \
     -name "emcc" \
     -path "*/Microsoft.NET.Runtime.Emscripten.*.Sdk.*" \
-    2>/dev/null | head -1 | xargs -I{} dirname {})
+    2>/dev/null | sort -V | tail -1 | xargs -I{} dirname {})
 
 if [ -z "$EMSCRIPTEN_SDK_ROOT" ]; then
     echo "ERROR: Could not find the .NET Emscripten SDK under $DOTNET_PACKS"
@@ -105,6 +124,11 @@ export FROZEN_CACHE=""
 # that the warmup step just built.
 export EM_IGNORE_SANITY=1
 
+# Add emscripten SDK to PATH so that cmake_link_script can find 'emcc' by name.
+# CMakeLists.txt sets CMAKE_AR="emcc" (no full path), so emcc must be in PATH
+# when the static-library link rules run during make.
+export PATH="$EMSCRIPTEN_SDK_ROOT:$PATH"
+
 echo "  LLVM_ROOT:    $DOTNET_EMSCRIPTEN_LLVM_ROOT"
 echo "  BINARYEN_ROOT:$DOTNET_EMSCRIPTEN_BINARYEN_ROOT"
 echo "  NODE_JS:      $DOTNET_EMSCRIPTEN_NODE_JS"
@@ -146,7 +170,8 @@ cd "$BUILD_DIR"
     -DCV_ENABLE_INTRINSICS:BOOL=FALSE \
     -DWITH_OPENCL:BOOL=OFF \
     -DBUILD_JPEG:BOOL=TRUE \
-    -DBUILD_PNG:BOOL=TRUE \
+    -DBUILD_PNG:BOOL=FALSE \
+    -DWITH_PNG:BOOL=FALSE \
     -DBUILD_TIFF:BOOL=OFF \
     -DWITH_TIFF:BOOL=OFF \
     -DEMGU_CV_WITH_TIFF:BOOL=OFF \
@@ -154,6 +179,7 @@ cd "$BUILD_DIR"
     -DEMGU_CV_WITH_FREETYPE:BOOL=FALSE \
     -DWITH_PTHREADS_PF:BOOL=OFF \
     -DEMGU_CV_WITH_DEPTHAI:BOOL=OFF \
+    -DEMGU_CV_EMSCRIPTEN_LLVM_AR_PATH="$LLVM_SHIM_DIR/llvm-ar" \
     "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
@@ -169,25 +195,8 @@ echo "Sysroot ready."
 
 # ---------------------------------------------------------------------------
 # Build cvextern
+# The POST_BUILD step in Emgu.CV.Extern/CMakeLists.txt (via
+# cmake/merge_emscripten_libs.cmake) merges all LLVM IR bitcode archives
+# into libs/webgl/cvextern.a automatically after the build completes.
 # ---------------------------------------------------------------------------
-"$EMMAKE" make cvextern -j$(nproc) VERBOSE=1
-
-# ---------------------------------------------------------------------------
-# Link all bitcode into a single libcvextern.bc
-# ---------------------------------------------------------------------------
-# Use llvm-link instead of "emcc -r" because emcc 3.1.56 -r produces a wasm
-# relocatable object rather than LLVM bitcode. llvm-link merges all bitcode
-# (OpenCV modules, 3rdparty libs, and cvextern wrapper objects) into a single
-# LLVM IR bitcode file that the Blazor NativeFileReference link step expects.
-cd "$REPO_ROOT"
-
-"$LLVM_SHIM_DIR/llvm-link" \
-    -o libs/webgl/libcvextern.bc \
-    platforms/emscripten/build_dotnet/bin/webgl/*.bc \
-    platforms/emscripten/build_dotnet/opencv/3rdparty/lib/*.bc \
-    platforms/emscripten/build_dotnet/Emgu.CV.Extern/CMakeFiles/cvextern.dir/**/*.o \
-    platforms/emscripten/build_dotnet/Emgu.CV.Extern/CMakeFiles/cvextern.dir/*.o
-
-echo ""
-echo "Done. Output: libs/webgl/libcvextern.bc"
-ls -lh libs/webgl/libcvextern.bc
+"$EMMAKE" make -j$(nproc) VERBOSE=1

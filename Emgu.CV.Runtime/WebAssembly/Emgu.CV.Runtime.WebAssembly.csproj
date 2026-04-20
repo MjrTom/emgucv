@@ -5,25 +5,32 @@
     <AssemblyName>Emgu.CV.runtime.webassembly</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
-    <!--
-      BLAZORWASM causes CvInvokeEntryPoints.cs to use "__Internal" as the
-      DllImport library name, so P/Invoke calls resolve into the native code
-      that is statically linked into dotnet.native.wasm via NativeFileReference.
-    -->
     <DefineConstants>$(DefineConstants);BLAZORWASM</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <!--
-      Link the Emscripten-compiled cvextern bitcode directly into the .NET
-      WebAssembly runtime image.  The wasm-tools build pipeline (Emscripten
-      3.1.56) will re-link this bitcode when building the final .wasm.
+      Pack the MSBuild targets file into build/ so NuGet automatically imports
+      it into any consuming project.  The targets file adds cvextern.a to
+      NativeFileReference when WasmBuildNative=true.
     -->
-    <NativeFileReference Include="$(MSBuildThisFileDirectory)..\..\libs\webgl\libcvextern.bc" />
+    <None Include="$(PackageId).targets">
+      <Pack>True</Pack>
+      <PackagePath>build/</PackagePath>
+    </None>
+    <!--
+      Pack the Emscripten-compiled cvextern LLVM IR archive into build/native/
+      so the targets file can reference it via $(MSBuildThisFileDirectory)native\.
+      Built by platforms/emscripten/cmake_configure_dotnet.sh.
+    -->
+    <None Include="$(MSBuildThisFileDirectory)..\..\libs\webgl\cvextern.a">
+      <Pack>True</Pack>
+      <PackagePath>build/native/</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\Emgu.CV\WebAssembly\Emgu.CV.WebAssembly.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\Emgu.CV\NetStandard\Emgu.CV.csproj" />
   </ItemGroup>
 
 </Project>

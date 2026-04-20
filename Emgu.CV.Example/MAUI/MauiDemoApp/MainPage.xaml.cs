@@ -7,6 +7,9 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Dnn;
 using Emgu.CV.Models;
 using Emgu.CV.Platform.Maui.UI;
+#if DEBUG
+using System.Diagnostics;
+#endif
 
 namespace MauiDemoApp
 {
@@ -14,6 +17,16 @@ namespace MauiDemoApp
     {
         //int count = 0;
 
+        private bool HasOpenCVModule(Dictionary<String, double> configDictionary, String key)
+        {
+            if (!configDictionary.ContainsKey(key))
+                return false;
+#if DEBUG
+            Trace.WriteLine(String.Format("The module key '{0}' is not found in Open CV config dict. Available keys are: {1}", key, String.Join(";", configDictionary.Keys)));
+#endif
+            return configDictionary[key] != 0;
+        }
+        
         public MainPage()
         {
             InitializeComponent();
@@ -80,17 +93,17 @@ namespace MauiDemoApp
             };
 
             var openCVConfigDict = CvInvoke.ConfigDict;
-            bool haveViz = (openCVConfigDict["HAVE_OPENCV_VIZ"] != 0);
-            bool haveDNN = (openCVConfigDict["HAVE_OPENCV_DNN"] != 0);
-            bool haveFreetype = (openCVConfigDict["HAVE_OPENCV_FREETYPE"] != 0);
-            bool haveFace = (openCVConfigDict["HAVE_OPENCV_FACE"] != 0);
-            bool haveWechatQRCode = (openCVConfigDict["HAVE_OPENCV_WECHAT_QRCODE"] != 0);
-            //bool haveBarcode = (openCVConfigDict["HAVE_OPENCV_BARCODE"] != 0);
-            bool haveObjdetect = (openCVConfigDict["HAVE_OPENCV_OBJDETECT"] != 0);
-            bool haveTesseract = (openCVConfigDict["HAVE_EMGUCV_TESSERACT"] != 0);
-            bool haveFeatures2D = (openCVConfigDict["HAVE_OPENCV_FEATURES2D"] != 0);
-            bool haveVideo = (openCVConfigDict["HAVE_OPENCV_VIDEO"] != 0);
-           // bool haveOptFlow = (openCVConfigDict["HAVE_OPENCV_OPTFLOW"] != 0);
+            bool haveViz = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_VIZ");
+            bool haveDNN = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_DNN");
+            bool haveFreetype = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_FREETYPE");
+            bool haveFace = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_FACE");
+            bool haveWechatQRCode = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_WECHAT_QRCODE");
+            //bool haveBarcode = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_BARCODE");
+            bool haveObjdetect = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_OBJDETECT");
+            bool haveTesseract = HasOpenCVModule(openCVConfigDict, "HAVE_EMGUCV_TESSERACT");
+            bool haveFeatures2D = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_FEATURES2D");
+            bool haveVideo = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_VIDEO");
+            //bool haveOptFlow = HasOpenCVModule(openCVConfigDict, "HAVE_OPENCV_OPTFLOW");
 
 
             bool hasInferenceEngine = false;
@@ -453,18 +466,87 @@ namespace MauiDemoApp
                 };
             }
             
-            StackLayout buttonsLayout = new StackLayout
+            string titleFont = DeviceInfo.Platform == DevicePlatform.iOS ? "AvenirNext-Heavy" : "OpenSansSemibold";
+            string bodyFont = DeviceInfo.Platform == DevicePlatform.iOS ? "AvenirNext-Regular" : "OpenSansRegular";
+
+            Color pageBackground = Color.FromArgb("#F2F2F7");
+            Color cardBackground = Colors.White;
+            Color primaryText = Color.FromArgb("#1C1C1E");
+            Color secondaryText = Color.FromArgb("#8A8A8E");
+            Color separatorColor = Color.FromArgb("#C6C6C8");
+
+            foreach (View v in buttonList)
             {
-                VerticalOptions = LayoutOptions.Start,
+                if (v is Button btn)
+                {
+                    btn.HorizontalOptions = LayoutOptions.Fill;
+                    btn.BackgroundColor = cardBackground;
+                    btn.TextColor = primaryText;
+                    btn.FontFamily = bodyFont;
+                    btn.FontSize = 17;
+                    btn.Padding = new Thickness(20, 15);
+                    btn.CornerRadius = 0;
+                    btn.Margin = new Thickness(0);
+                }
+            }
+
+            var titleLabel = new Label
+            {
+                Text = "Emgu CV",
+                FontFamily = titleFont,
+                FontSize = 44,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = primaryText,
             };
 
-            foreach (View b in buttonList)
-                buttonsLayout.Children.Add(b);
-
-            this.Content = new ScrollView()
+            var subtitleLabel = new Label
             {
-                Content = buttonsLayout,
+                Text = "Computer Vision",
+                FontFamily = bodyFont,
+                FontSize = 14,
+                TextColor = secondaryText,
+                Margin = new Thickness(0, 4, 0, 0)
             };
+
+            var headerLayout = new StackLayout
+            {
+                Padding = new Thickness(24, 56, 24, 20),
+                BackgroundColor = pageBackground,
+                Children = { titleLabel, subtitleLabel }
+            };
+
+            var buttonsCard = new StackLayout
+            {
+                Spacing = 0,
+                BackgroundColor = cardBackground,
+            };
+
+            bool firstVisible = true;
+            foreach (View v in buttonList)
+            {
+                if (!firstVisible)
+                {
+                    buttonsCard.Children.Add(new BoxView
+                    {
+                        HeightRequest = 0.5,
+                        BackgroundColor = separatorColor,
+                        Margin = new Thickness(20, 0, 0, 0),
+                        HorizontalOptions = LayoutOptions.Fill
+                    });
+                }
+                firstVisible = false;
+                buttonsCard.Children.Add(v);
+            }
+
+            var contentLayout = new StackLayout
+            {
+                BackgroundColor = pageBackground,
+                Spacing = 16,
+                Children = { headerLayout, buttonsCard }
+            };
+
+            this.BackgroundColor = pageBackground;
+            this.Content = new ScrollView { Content = contentLayout };
         }
 
 
